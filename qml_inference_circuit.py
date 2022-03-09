@@ -40,13 +40,15 @@ class inference_circuit:
         self.algorithms_hf.create_superposition(self.inference_circuit, self.activation_fxn_reg)
 
         def diag_element(z):
-            return exp(2 * pi * 1j * z / 2 ** bit_accuracy)
+            return exp(2 * pi * 1j * fxn(z) / 2 ** bit_accuracy)
 
         D_gate = Diagonal(
             array([diag_element(0), diag_element(1), diag_element(-2), diag_element(-1)])
-        ).control(1).decompose()
+        )
 
-        self.inference_circuit.append(D_gate, self.inner_prod_reg[:] + self.activation_fxn_reg[:])
+        for bit in range(1, bit_accuracy + 1):
+            self.inference_circuit.append(D_gate.control(1).power(bit),
+                                          [self.activation_fxn_reg[bit - 1]] + self.inner_prod_reg[:])
 
     def draw_circuit(self):
         """"""
