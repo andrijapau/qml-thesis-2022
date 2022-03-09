@@ -1,6 +1,9 @@
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, execute, transpile
 from qiskit.circuit.library import Diagonal
 
+from qiskit.providers.ibmq import least_busy
+from qiskit import IBMQ
+
 from numpy import array, exp, pi
 import matplotlib.pyplot as plt
 
@@ -12,6 +15,10 @@ class inference_circuit:
         self.basis_encoding_hf = self.basis_encoding()
         self.algorithms_hf = self.algorithms()
         self.inference_circuit = QuantumCircuit()
+        self.num_of_qubits = 0
+
+        IBMQ.load_account()
+        self.provider = IBMQ.get_provider(hub='ibm-q')
 
     def encode_data(self, x_vector):
         """"""
@@ -46,18 +53,30 @@ class inference_circuit:
         self.inference_circuit.draw(output='mpl')
         plt.show()
 
-    def execute_circuit(self, backend, shots, optimization_level=None):
-        """"""
-        classical_reg = ClassicalRegister(len(self.activation_fxn_reg), 'result')
+    def measure_register(self, register):
+        classical_reg = ClassicalRegister(len(register), 'result')
         self.inference_circuit.add_register(classical_reg)
-        self.inference_circuit.measure(self.activation_fxn_reg, classical_reg)
-        print(self.inference_circuit.qregs)
-        # job = execute(
-        #     transpile(self.circuit, backend=backend, optimization_level=optimization_level),
-        #     backend=backend,
-        #     shots=shots
-        # )
-        # self.result = job.result()
+        self.inference_circuit.measure(register, classical_reg)
+
+    def execute_circuit(self, shots, backend=None, optimization_level=None):
+        """"""
+        self.measure_register(self.activation_fxn_reg)
+        self.get_number_of_qubits()
+
+        if backend == None:
+            self.backend = least_busy(
+                self.provider.backends(filters=lambda x: x.configuration().n_qubits >= self.num_of_qubits
+                                                         and not x.configuration().simulator
+                                                         and x.status().operational == True)
+            )
+        else:
+            self.backend = self.provider.get_backend(backend)
+            job = execute(
+                transpile(self.inference_circuit, backend=backend, optimization_level=optimization_level),
+                backend=self.backend,
+                shots=shots
+            )
+            self.result = job.result()
 
     def display_results(self):
         """"""
@@ -66,6 +85,10 @@ class inference_circuit:
     def get_backend_data(self, backend):
         """"""
         print(self.result)
+
+    def get_number_of_qubits(self):
+        self.num_of_qubits = self.inference_circuit.num_qubits
+        print("Number of Qubits Required: ", self.num_of_qubits)
 
     class basis_encoding:
         """"""
