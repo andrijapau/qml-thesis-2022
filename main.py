@@ -4,7 +4,7 @@ x = array([1])
 w = array([1])
 inner_prod_bit_accuracy = 2
 activation_fxn_bit_accuracy = 1
-backend = "ibmq_qasm_simulator"
+backend_name = "ibmq_qasm_simulator"
 
 
 def relu(z):
