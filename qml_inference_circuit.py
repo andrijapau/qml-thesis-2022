@@ -53,7 +53,7 @@ class inference_circuit:
         for x in x_qregs_sorted:
             for type in x:
                 for qubit in type:
-                    for i in range(num_of_ip_anc):
+                    for i in reversed(range(num_of_ip_anc)):
                         if "int" in qubit.register.name:
                             self.inference_circuit.append(
                                 CPhaseGate(w_vector[w] * (2 ** qubit.index) * pi / 2 ** i),
@@ -101,16 +101,18 @@ class inference_circuit:
         self.get_number_of_qubits()
 
         if backend == None:
-            pass
-        # self.backend = least_busy(
-        #     self.provider.backends(filters=lambda x: x.configuration().n_qubits >= self.num_of_qubits
-        #                                              and not x.configuration().simulator
-        #                                              and x.status().operational == True)
-        # )
+            try:
+                self.backend = least_busy(
+                    self.provider.backends(filters=lambda x: x.configuration().n_qubits >= self.num_of_qubits
+                                                             and not x.configuration().simulator
+                                                             and x.status().operational == True)
+                )
+            except:
+                print("Not enough qubits")
         else:
             self.backend = self.provider.get_backend(backend)
             job = execute(
-                transpile(self.inference_circuit, backend=backend, optimization_level=optimization_level),
+                transpile(self.inference_circuit, backend=self.backend, optimization_level=optimization_level),
                 backend=self.backend,
                 shots=shots
             )
@@ -136,8 +138,8 @@ class inference_circuit:
 
         def convert_data_to_binary(self, decimal):
             ''''''
-            self.int_bin = '1'
-            self.float_bin = ''
+            self.int_bin = ''
+            self.float_bin = '11'
 
         def embed_data_to_circuit(self, data, circuit, data_num=None):
             """"""
