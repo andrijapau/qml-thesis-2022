@@ -1,5 +1,5 @@
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, execute, transpile
-from qiskit.circuit.library import Diagonal
+from qiskit.circuit.library import Diagonal, CPhaseGate
 
 from qiskit.providers.ibmq import least_busy
 from qiskit import IBMQ
@@ -33,6 +33,39 @@ class inference_circuit:
         self.inference_circuit.add_register(self.inner_prod_reg)
         self.algorithms_hf.create_superposition(self.inference_circuit, self.inner_prod_reg)
 
+        num_of_ip_anc = len(self.inner_prod_reg)
+        qregs = self.inference_circuit.qregs
+        x_qregs = array([reg for reg in qregs if "x" in reg.name])
+        print(x_qregs)
+
+        x_qregs_sorted = []
+        temp = []
+        curr = 0
+        for i in range(len(x_qregs)):
+            for x in x_qregs:
+                if "{}".format(curr) in x[0].register.name:
+                    temp += [x]
+            x_qregs_sorted += [temp]
+            curr += 1
+        print(x_qregs_sorted)
+
+        w = 0
+        for x in x_qregs_sorted:
+            for type in x:
+                for qubit in type:
+                    for i in range(num_of_ip_anc):
+                        if "int" in qubit.register.name:
+                            self.inference_circuit.append(
+                                CPhaseGate(w_vector[w] * (2 ** qubit.index) * pi / 2 ** i),
+                                [qubit.register[qubit.index], self.inner_prod_reg[i]])
+                        if "float" in qubit.register.name:
+                            self.inference_circuit.append(
+                                CPhaseGate(w_vector[w] * (2 ** -(qubit.index + 1)) * pi / 2 ** i),
+                                [qubit.register[qubit.index], self.inner_prod_reg[i]])
+            w += 1
+
+        self.algorithms_hf.inv_qft(self.inference_circuit, self.inner_prod_reg)
+
     def add_activation_fxn_module(self, fxn, bit_accuracy):
         """"""
         self.activation_fxn_reg = QuantumRegister(bit_accuracy, 'anc_fxn')
@@ -50,6 +83,8 @@ class inference_circuit:
             self.inference_circuit.append(D_gate.control(1).power(bit),
                                           [self.activation_fxn_reg[bit - 1]] + self.inner_prod_reg[:])
 
+        self.algorithms_hf.inv_qft(self.inference_circuit, self.activation_fxn_reg)
+
     def draw_circuit(self):
         """"""
         self.inference_circuit.draw(output='mpl')
@@ -66,11 +101,12 @@ class inference_circuit:
         self.get_number_of_qubits()
 
         if backend == None:
-            self.backend = least_busy(
-                self.provider.backends(filters=lambda x: x.configuration().n_qubits >= self.num_of_qubits
-                                                         and not x.configuration().simulator
-                                                         and x.status().operational == True)
-            )
+            pass
+        # self.backend = least_busy(
+        #     self.provider.backends(filters=lambda x: x.configuration().n_qubits >= self.num_of_qubits
+        #                                              and not x.configuration().simulator
+        #                                              and x.status().operational == True)
+        # )
         else:
             self.backend = self.provider.get_backend(backend)
             job = execute(
@@ -131,6 +167,21 @@ class inference_circuit:
             """"""
             circuit.h(register)
 
-        def inverse_qft(self, circuit, register):
-            """"""
-            print(1)
+        def qft(self, circuit, q_reg):
+            self.qft_rotations(circuit, len(q_reg))
+
+        def qft_rotations(self, circuit, qubit_number):
+            if qubit_number == 0:
+                return circuit
+            qubit_number -= 1
+            circuit.h(qubit_number)
+            for qubit in range(qubit_number):
+                circuit.cp(pi / 2 ** (qubit_number - qubit), qubit, qubit_number)
+
+            self.qft_rotations(circuit, qubit_number)
+
+        def inv_qft(self, circuit, q_reg):
+            dummy_circuit = QuantumCircuit(len(q_reg))
+            self.qft(dummy_circuit, q_reg)
+            invqft_circuit = dummy_circuit.inverse()
+            circuit.append(invqft_circuit, q_reg)
