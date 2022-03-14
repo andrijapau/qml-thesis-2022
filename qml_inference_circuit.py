@@ -1,10 +1,11 @@
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, execute, transpile
 from qiskit.circuit.library import Diagonal, CPhaseGate
+from qiskit.visualization import plot_histogram
 
 from qiskit.providers.ibmq import least_busy
 from qiskit import IBMQ
 
-from numpy import array, exp, pi
+from numpy import array, exp, pi, dot
 import matplotlib.pyplot as plt
 
 
@@ -36,18 +37,16 @@ class inference_circuit:
         num_of_ip_anc = len(self.inner_prod_reg)
         qregs = self.inference_circuit.qregs
         x_qregs = array([reg for reg in qregs if "x" in reg.name])
-        print(x_qregs)
 
         x_qregs_sorted = []
-        temp = []
         curr = 0
         for i in range(len(x_qregs)):
+            temp = []
             for x in x_qregs:
                 if "{}".format(curr) in x[0].register.name:
                     temp += [x]
             x_qregs_sorted += [temp]
             curr += 1
-        print(x_qregs_sorted)
 
         w = 0
         for x in x_qregs_sorted:
@@ -76,7 +75,9 @@ class inference_circuit:
             return exp(2 * pi * 1j * fxn(z) / 2 ** bit_accuracy)
 
         D_gate = Diagonal(
-            array([diag_element(0), diag_element(1), diag_element(-2), diag_element(-1)])
+            array(
+                [diag_element(0), diag_element(1), diag_element(2), diag_element(3), diag_element(-4), diag_element(-3),
+                 diag_element(-2), diag_element(-1)])
         )
 
         for bit in range(1, bit_accuracy + 1):
@@ -120,7 +121,8 @@ class inference_circuit:
 
     def display_results(self):
         """"""
-        print(self.result)
+        plot_histogram(self.result.get_counts(), title="QML Inference Circuit Results", color='black')
+        plt.show()
 
     def get_backend_data(self, backend):
         """"""
@@ -143,7 +145,16 @@ class inference_circuit:
 
         def embed_data_to_circuit(self, data, circuit, data_num=None):
             """"""
-            self.convert_data_to_binary(data)
+            # self.convert_data_to_binary(data)
+            if data_num == 0:
+                self.int_bin = ''
+                self.float_bin = '11'
+            if data_num == 1:
+                self.int_bin = ''
+                self.float_bin = '1'
+            if data_num == 2:
+                self.int_bin = '1'
+                self.float_bin = ''
 
             if len(self.int_bin) != 0:
                 int_reg = QuantumRegister(len(self.int_bin), 'x{}_int'.format(data_num))
