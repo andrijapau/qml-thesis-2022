@@ -8,6 +8,8 @@ from qiskit import IBMQ
 from numpy import array, exp, pi, dot
 import matplotlib.pyplot as plt
 
+from utilities import FloatingPointDecimal2Binary
+
 
 class inference_circuit:
     """"""
@@ -36,7 +38,7 @@ class inference_circuit:
 
         num_of_ip_anc = len(self.inner_prod_reg)
         qregs = self.inference_circuit.qregs
-        x_qregs = array([reg for reg in qregs if "x" in reg.name])
+        x_qregs = array([reg for reg in qregs if "x" in reg.name], dtype=object)
 
         x_qregs_sorted = []
         curr = 0
@@ -88,7 +90,7 @@ class inference_circuit:
 
     def draw_circuit(self):
         """"""
-        self.inference_circuit.draw(output='mpl')
+        self.inference_circuit.decompose().decompose().draw(output='mpl')
         plt.show()
 
     def measure_register(self, register):
@@ -124,9 +126,12 @@ class inference_circuit:
         plot_histogram(self.result.get_counts(), title="QML Inference Circuit Results", color='black')
         plt.show()
 
-    def get_backend_data(self, backend):
+    def get_backend_data(self):
         """"""
-        print(self.result)
+        print(self.backend)
+
+    def get_circuit_data(self):
+        print(self.inference_circuit.data)
 
     def get_number_of_qubits(self):
         self.num_of_qubits = self.inference_circuit.num_qubits
@@ -140,21 +145,20 @@ class inference_circuit:
 
         def convert_data_to_binary(self, decimal):
             ''''''
-            self.int_bin = ''
-            self.float_bin = '11'
+            places = 2
+            if decimal < 0:
+                print("In progress")
+            elif decimal > 0:
+                x_int, x_float = FloatingPointDecimal2Binary.dec2bin(decimal, places)
+                self.int_bin = x_int
+                self.float_bin = x_float.rstrip('0')
+            else:
+                self.int_bin = ''
+                self.float_bin = ''
 
         def embed_data_to_circuit(self, data, circuit, data_num=None):
             """"""
-            # self.convert_data_to_binary(data)
-            if data_num == 0:
-                self.int_bin = ''
-                self.float_bin = '11'
-            if data_num == 1:
-                self.int_bin = ''
-                self.float_bin = '1'
-            if data_num == 2:
-                self.int_bin = '1'
-                self.float_bin = ''
+            self.convert_data_to_binary(data)
 
             if len(self.int_bin) != 0:
                 int_reg = QuantumRegister(len(self.int_bin), 'x{}_int'.format(data_num))
@@ -174,7 +178,7 @@ class inference_circuit:
         """"""
 
         def __init__(self):
-            print(1)
+            pass
 
         def create_superposition(self, circuit, register):
             """"""
@@ -194,7 +198,7 @@ class inference_circuit:
             self.qft_rotations(circuit, qubit_number)
 
         def inv_qft(self, circuit, q_reg):
-            dummy_circuit = QuantumCircuit(len(q_reg))
+            dummy_circuit = QuantumCircuit(len(q_reg), name=r'$QFT^\dagger$')
             self.qft(dummy_circuit, q_reg)
             invqft_circuit = dummy_circuit.inverse()
             circuit.append(invqft_circuit, q_reg)
