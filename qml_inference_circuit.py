@@ -1,17 +1,17 @@
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, execute, transpile
-from qiskit.circuit.library import Diagonal, CPhaseGate
+from qiskit.circuit.library import Diagonal, CPhaseGate, RZGate, RYGate
 from qiskit.visualization import plot_histogram
 
 from qiskit.providers.ibmq import least_busy
 from qiskit import IBMQ
 
-from numpy import array, exp, pi, dot
+from numpy import array, exp, pi, dot, floor, log2
 import matplotlib.pyplot as plt
 
 from utilities import FloatingPointDecimal2Binary
 
 
-class inference_circuit:
+class basis_encoding_circuit:
     """"""
 
     def __init__(self):
@@ -173,6 +173,208 @@ class inference_circuit:
                 for i in range(len(self.float_bin)):
                     if self.float_bin[i] == '1':
                         circuit.x(float_reg[i])
+
+    class algorithms:
+        """"""
+
+        def __init__(self):
+            pass
+
+        def create_superposition(self, circuit, register):
+            """"""
+            circuit.h(register)
+
+        def qft(self, circuit, q_reg):
+            self.qft_rotations(circuit, len(q_reg))
+
+        def qft_rotations(self, circuit, qubit_number):
+            if qubit_number == 0:
+                return circuit
+            qubit_number -= 1
+            circuit.h(qubit_number)
+            for qubit in range(qubit_number):
+                circuit.cp(pi / 2 ** (qubit_number - qubit), qubit, qubit_number)
+
+            self.qft_rotations(circuit, qubit_number)
+
+        def inv_qft(self, circuit, q_reg):
+            dummy_circuit = QuantumCircuit(len(q_reg), name=r'$QFT^\dagger$')
+            self.qft(dummy_circuit, q_reg)
+            invqft_circuit = dummy_circuit.inverse()
+            circuit.append(invqft_circuit, q_reg)
+
+
+class amplitude_encoding_circuit:
+    def __init__(self):
+        self.inference_circuit = QuantumCircuit()
+        self.amplitude_encoding_hf = self.amplitude_encoding()
+        self.algorithms_hf = self.algorithms()
+
+        IBMQ.load_account()
+        self.provider = IBMQ.get_provider(hub='ibm-q')
+
+    def encode_data(self, x_vec, w_vec):
+
+        self.num_of_encoding_qubits = -1
+        if len(x_vec) == len(w_vec):
+            self.num_of_encoding_qubits = floor(log2(len(x_vec)))
+        else:
+            raise ValueError('ERROR: Size of X and W are not equal.')
+
+        self.U_x = self.amplitude_encoding.U_x__gate(x_vec)
+        self.U_w = self.amplitude_encoding.U_w__gate(w_vec)
+
+    def build_circuit(self, qft_bit_accuracy=None):
+
+        U_phi_r = self.U_phi_r__gate()
+
+        self.anc_reg = QuantumRegister(1, name='data_anc')
+        self.inference_circuit.add_register(self.anc_reg)
+
+        self.data_reg = QuantumRegister(self.num_of_encoding_qubits, name='data')
+        self.inference_circuit.add_register(self.data_reg)
+
+        self.qft_anc_reg = QuantumRegister(qft_bit_accuracy, name='qft_anc')
+        self.inference_circuit.add_register(self.qft_anc_reg)
+
+        self.inference_circuit.append(
+            U_phi_r,
+            self.anc_reg[:] + self.data_reg[:]
+        )
+
+        self.algorithms_hf.create_superposition(self.inference_circuit, self.qft_anc_reg)
+
+        self.QPE()
+
+        self.algorithms_hf.inv_qft(self.inference_circuit, self.qft_anc_reg)
+
+    def U_phi_r__gate(self):
+
+        anc_reg = QuantumRegister(1)
+        data_reg = QuantumRegister(self.num_of_encoding_qubits)
+
+        U_phi_r__gate__circuit = QuantumCircuit(anc_reg, data_reg)
+        U_phi_r__gate__circuit.h(anc_reg)
+        U_phi_r__gate__circuit.append(
+            self.U_x.control(1, ctrl_state='0'),
+            [anc_reg[0], data_reg[:]]
+        )
+        U_phi_r__gate__circuit.append(
+            self.U_w.control(1, ctrl_state='1'),
+            [anc_reg[0], data_reg[:]]
+        )
+        U_phi_r__gate__circuit.h(anc_reg)
+        U_phi_r__gate__circuit.decompose().draw(output='mpl')
+        plt.show()
+        return U_phi_r__gate__circuit.to_gate(label=r'$U_{\phi_r}$')
+
+    def G_r__gate(self):
+
+        U_phi_r = self.U_phi_r__gate()
+        U_phi_r_inv = U_phi_r.inverse()
+
+        anc_reg = QuantumRegister(1)
+        data_reg = QuantumRegister(self.num_of_encoding_qubits)
+        G_r__gate__circuit = QuantumCircuit(anc_reg, data_reg)
+        G_r__gate__circuit.z(anc_reg)
+        G_r__gate__circuit.append(
+            U_phi_r_inv,
+            anc_reg[:] + data_reg[:]
+        )
+        G_r__gate__circuit.append(
+            RZGate(pi).control(self.num_of_encoding_qubits, ctrl_state='0' * int(self.num_of_encoding_qubits)),
+            [anc_reg[:] + data_reg[:-1], data_reg[-1]]
+        )
+        G_r__gate__circuit.append(
+            U_phi_r,
+            anc_reg[:] + data_reg[:]
+        )
+        G_r__gate__circuit.decompose().draw(output='mpl')
+        plt.show()
+
+        return G_r__gate__circuit.to_gate(label=r'$G_r$')
+
+    def QPE(self):
+
+        G_r = self.G_r__gate()
+
+        for i in range(len(self.qft_anc_reg)):
+            self.inference_circuit.append(
+                G_r.control(1, ctrl_state='1').power(2 ** i),
+                [self.qft_anc_reg[i]] + self.anc_reg[:] + self.data_reg[:]
+            )
+
+    def add_activation_fxn_module(self, fxn, bit_accuracy):
+        """"""
+        self.activation_fxn_reg = QuantumRegister(bit_accuracy, 'anc_fxn')
+        self.inference_circuit.add_register(self.activation_fxn_reg)
+        self.algorithms_hf.create_superposition(self.inference_circuit, self.activation_fxn_reg)
+
+        def diag_element(z):
+            return exp(2 * pi * 1j * fxn(z) / 2 ** bit_accuracy)
+
+        D_gate = Diagonal(
+            array(
+                [diag_element(0), diag_element(1)]
+            )
+        )
+
+        for bit in range(1, bit_accuracy + 1):
+            self.inference_circuit.append(D_gate.control(1).power(bit),
+                                          [self.activation_fxn_reg[bit - 1]] + self.qft_anc_reg[:])
+
+        self.algorithms_hf.inv_qft(self.inference_circuit, self.activation_fxn_reg)
+
+    def measure_register(self, register):
+        classical_reg = ClassicalRegister(len(register), 'result')
+        self.inference_circuit.add_register(classical_reg)
+        self.inference_circuit.measure(register, classical_reg)
+
+    def execute_circuit(self, shots, backend=None, optimization_level=None):
+        """"""
+        self.measure_register(self.activation_fxn_reg)
+        # self.inference_circuit.measure_all()
+        # if backend == None:
+        #     try:
+        #         self.backend = least_busy(
+        #             self.provider.backends(filters=lambda x: x.configuration().n_qubits >= self.num_of_qubits
+        #                                                      and not x.configuration().simulator
+        #                                                      and x.status().operational == True)
+        #         )
+        #     except:
+        #         print("Not enough qubits")
+        # else:
+        self.backend = self.provider.get_backend(backend)
+        job = execute(
+            transpile(self.inference_circuit, backend=self.backend, optimization_level=optimization_level),
+            backend=self.backend,
+            shots=shots
+        )
+        self.result = job.result()
+        self.display_results()
+
+    def draw_circuit(self):
+        self.inference_circuit.draw(output='mpl')
+        plt.show()
+
+    def display_results(self):
+        """"""
+        plot_histogram(self.result.get_counts(), title="QML Inference Circuit Results", color='black')
+        plt.show()
+
+    class amplitude_encoding:
+        def __init__(self):
+            pass
+
+        def U_x__gate(self):
+            x_angle = 0
+
+            return RYGate(2 * x_angle)
+
+        def U_w__gate(self):
+            w_angle = 0
+
+            return RYGate(2 * w_angle)
 
     class algorithms:
         """"""
