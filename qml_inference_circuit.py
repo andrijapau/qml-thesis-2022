@@ -82,9 +82,9 @@ class basis_encoding_circuit:
                  diag_element(-2), diag_element(-1)])
         )
 
-        for bit in range(1, bit_accuracy + 1):
-            self.inference_circuit.append(D_gate.control(1).power(bit),
-                                          [self.activation_fxn_reg[bit - 1]] + self.inner_prod_reg[:])
+        for bit in range(bit_accuracy):
+            self.inference_circuit.append(D_gate.control(1).power(2 ** bit),
+                                          [self.activation_fxn_reg[bit]] + self.inner_prod_reg[:])
 
         self.algorithms_hf.inv_qft(self.inference_circuit, self.activation_fxn_reg)
 
