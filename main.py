@@ -5,6 +5,7 @@ from qml_inference_circuit import *
 # inner_prod_bit_accuracy = 3
 # activation_fxn_bit_accuracy = 1
 backend_name = "ibmq_qasm_simulator"
+import numpy as np
 
 
 def relu(z):
@@ -17,6 +18,10 @@ def sigmoid(z):
 
 def activation_function(z):
     return relu(z)
+
+
+def linear(z):
+    return z
 
 
 #
@@ -39,8 +44,8 @@ w = array([1, 1])
 
 circuit = amplitude_encoding_circuit()
 circuit.encode_data(x, w)
-circuit.build_circuit(qft_bit_accuracy=1)
-circuit.add_activation_fxn_module(activation_function, bit_accuracy=1)
+circuit.build_circuit(qft_bit_accuracy=2)
+# circuit.add_activation_fxn_module(activation_function, bit_accuracy=2)
 circuit.draw_circuit()
 
 circuit.execute_circuit(shots=20000, backend=backend_name, optimization_level=None)

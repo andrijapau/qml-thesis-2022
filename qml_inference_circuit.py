@@ -256,14 +256,15 @@ class amplitude_encoding_circuit:
         U_phi_r__gate__circuit = QuantumCircuit(anc_reg, data_reg)
         U_phi_r__gate__circuit.h(anc_reg)
         U_phi_r__gate__circuit.append(
-            self.U_x.control(1, ctrl_state='0'),
+            self.U_x.control(1, ctrl_state='1'),
             [anc_reg[0], data_reg[:]]
         )
         U_phi_r__gate__circuit.append(
-            self.U_w.control(1, ctrl_state='1'),
+            self.U_w.control(1, ctrl_state='0'),
             [anc_reg[0], data_reg[:]]
         )
         U_phi_r__gate__circuit.h(anc_reg)
+
         U_phi_r__gate__circuit.decompose().draw(output='mpl')
         plt.show()
         return U_phi_r__gate__circuit.to_gate(label=r'$U_{\phi_r}$')
@@ -304,6 +305,8 @@ class amplitude_encoding_circuit:
                 [self.qft_anc_reg[i]] + self.anc_reg[:] + self.data_reg[:]
             )
 
+        # self.inference_circuit.swap(self.qft_anc_reg[0], self.qft_anc_reg[1])
+
     def add_activation_fxn_module(self, fxn, bit_accuracy):
         """"""
         self.activation_fxn_reg = QuantumRegister(bit_accuracy, 'anc_fxn')
@@ -315,13 +318,13 @@ class amplitude_encoding_circuit:
 
         D_gate = Diagonal(
             array(
-                [diag_element(0), diag_element(1)]
+                [diag_element(0), diag_element(1), diag_element(-2), diag_element(-1)]
             )
         )
 
-        for bit in range(1, bit_accuracy + 1):
-            self.inference_circuit.append(D_gate.control(1).power(bit),
-                                          [self.activation_fxn_reg[bit - 1]] + self.qft_anc_reg[:])
+        for bit in range(bit_accuracy):
+            self.inference_circuit.append(D_gate.control(1).power(2 ** bit),
+                                          [self.activation_fxn_reg[bit]] + self.qft_anc_reg[:])
 
         self.algorithms_hf.inv_qft(self.inference_circuit, self.activation_fxn_reg)
 
@@ -332,7 +335,8 @@ class amplitude_encoding_circuit:
 
     def execute_circuit(self, shots, backend=None, optimization_level=None):
         """"""
-        self.measure_register(self.activation_fxn_reg)
+        # self.measure_register(self.activation_fxn_reg)
+        self.measure_register(self.qft_anc_reg)
         # self.inference_circuit.measure_all()
         # if backend == None:
         #     try:
@@ -367,7 +371,7 @@ class amplitude_encoding_circuit:
             pass
 
         def U_x__gate(self):
-            x_angle = 0
+            x_angle = pi / 2
 
             return RYGate(2 * x_angle)
 
