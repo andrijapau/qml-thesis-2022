@@ -1,10 +1,6 @@
 from model_testing import *
 
 
-def relu(z):
-    return max(0, z)
-
-
 def sigmoid(z):
     return 1 / (1 + exp(-z))
 
@@ -12,14 +8,6 @@ def sigmoid(z):
 def activation_function(z):
     return sigmoid(z)
 
-
-def linear(z):
-    return z
-
-
-#
-# print("Classical Dot Product: ", dot(x, w))
-# print("Sigmoid f(w*x) = ", activation_function(dot(x, w)))
 
 inner_prod_bit_accuracy = 6
 activation_fxn_bit_accuracy = 1
@@ -33,6 +21,8 @@ test.load_csv("./datasets/qml_dataset.csv")
 test.run_model_on_backend(backend=backend_name)
 test.print_metrics()
 
+# print("Classical Dot Product: ", dot(x, w))
+# print("Sigmoid f(w*x) = ", activation_function(dot(x, w)))
 # circuit = basis_encoding_circuit()
 # circuit.encode_data(x)
 # circuit.add_inner_product_module(w, bit_accuracy=inner_prod_bit_accuracy)

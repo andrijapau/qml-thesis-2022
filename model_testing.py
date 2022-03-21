@@ -67,8 +67,7 @@ class model_testing:
             self.y_pred.append([y_pred_value])
 
     def print_metrics(self):
-        self.get_confusion_matrix()
-        print("CONFUSION MATRIX: ", self.cfn_matrix)
+        self.print_confusion_matrix_and_measures()
 
     def get_class(self, counts):
         total_shots = sum(list(counts.values()))
@@ -77,8 +76,31 @@ class model_testing:
                 y_pred = where(value / total_shots >= .5, 1, 0)
         return y_pred
 
-    def get_confusion_matrix(self):
+    def print_confusion_matrix_and_measures(self):
         self.cfn_matrix = confusion_matrix(self.y_true, self.y_pred)
+
+        TP = self.cfn_matrix[0, 0]  # True Positive
+        FP = self.cfn_matrix[0, 1]  # False Positive
+        FN = self.cfn_matrix[1, 0]  # False Negative
+        TN = self.cfn_matrix[1, 1]  # True Negative
+
+        def precision(TP, FP):
+            return TP / (TP + FP)
+
+        def recall(TP, FN):
+            return TP / (TP + FN)
+
+        def accuracy(TP, TN, FP, FN):
+            return (TP + TN) / (TP + TN + FP + FN)
+
+        def F_measure(TP, FP, FN):
+            return (2 * TP) / (2 * TP + FP + FN)
+
+        print("CONFUSION MATRIX: \n", self.cfn_matrix)
+        print("Precision = ", precision(TP, FP))
+        print("Recall = ", recall(TP, FN))
+        print("Accuracy = ", accuracy(TP, TN, FP, FN))
+        print("F1 = ", F_measure(TP, FP, FN))
 
     def get_auc(self):
         pass
