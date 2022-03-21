@@ -1,26 +1,25 @@
 from model_testing import *
 
-
-def sigmoid(z):
-    return 1 / (1 + exp(-z))
-
-
-def activation_function(z):
-    return sigmoid(z)
-
-
 inner_prod_bit_accuracy = 6
 activation_fxn_bit_accuracy = 1
 backend_name = "ibmq_qasm_simulator"
 
 # w1, w2, b
 beta = array([-8.803, -14.53, 12.57])
+
+# begin testing
 test = model_testing(trained_weights=beta, inner_product_bit_accuracy=inner_prod_bit_accuracy,
                      activation_fxn_bit_accuracy=activation_fxn_bit_accuracy, debug=False)
 test.load_csv("./datasets/qml_dataset.csv")
 test.run_model_on_backend(backend=backend_name)
 test.print_metrics()
 
+# def sigmoid(z):
+#     return 1 / (1 + exp(-z))
+#
+#
+# def activation_function(z):
+#     return sigmoid(z)
 # print("Classical Dot Product: ", dot(x, w))
 # print("Sigmoid f(w*x) = ", activation_function(dot(x, w)))
 # circuit = basis_encoding_circuit()

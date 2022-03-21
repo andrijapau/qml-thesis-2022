@@ -1,5 +1,5 @@
 from qml_inference_circuit import *
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, roc_auc_score, roc_curve
 
 from numpy import where, array
 import csv
@@ -68,6 +68,8 @@ class model_testing:
 
     def print_metrics(self):
         self.print_confusion_matrix_and_measures()
+        self.print_auc_score()
+        self.plot_roc_curve()
 
     def get_class(self, counts):
         total_shots = sum(list(counts.values()))
@@ -102,11 +104,22 @@ class model_testing:
         print("Accuracy = ", accuracy(TP, TN, FP, FN))
         print("F1 = ", F_measure(TP, FP, FN))
 
-    def get_auc(self):
-        pass
+    def print_auc_score(self):
+        auc_score = roc_auc_score(self.y_true, self.y_pred)
+        print("AUC = ", auc_score)
 
-    def get_roc(self):
-        pass
+    def plot_roc_curve(self):
+        fpr, tpr, thres = roc_curve(self.y_true, self.y_pred, pos_label=1)
+        plt.plot(fpr, tpr, linestyle='--', color='orange', label='Logistic Regression (QML)')
+        # title
+        plt.title('ROC curve')
+        # x label
+        plt.xlabel('False Positive Rate')
+        # y label
+        plt.ylabel('True Positive rate')
+        plt.legend(loc='best')
+        plt.savefig('ROC', dpi=300)
+        plt.show()
 
     def generate_dataset(self):
         # generate 2d classification dataset
