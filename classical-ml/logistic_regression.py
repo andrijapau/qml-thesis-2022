@@ -108,11 +108,10 @@ def plot_reg(X, y, beta):
 
 if __name__ == "__main__":
     # load the dataset
-    dataset = loadCSV('dataset.csv')
+    dataset = loadCSV('../datasets/make_blobs_dataset.csv')
 
     # normalizing feature matrix
-    X = normalize(dataset[:, :-1])
-    print(X)
+    X = normalize(dataset[:, 1:-1])
 
     # stacking columns with all ones in feature matrix
     X = np.hstack((np.matrix(np.ones(X.shape[0])).T, X))

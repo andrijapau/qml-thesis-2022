@@ -40,8 +40,15 @@ class basis_encoding_circuit:
         qregs = self.inference_circuit.qregs
         x_qregs = array([reg for reg in qregs if "x" in reg.name], dtype=object)
 
+        if x_qregs.ndim == 2:
+            first_element = x_qregs[0, 0]
+            start_index = int(first_element.register.name.lstrip('x').rstrip('_float').rstrip('_int'))
+        else:
+            first_element = x_qregs[0]
+            start_index = int(first_element.name.lstrip('x').rstrip('_float').rstrip('_int'))
+
         x_qregs_sorted = []
-        curr = 0
+        curr = start_index
         for i in range(len(x_qregs)):
             temp = []
             for x in x_qregs:
@@ -50,7 +57,7 @@ class basis_encoding_circuit:
             x_qregs_sorted += [temp]
             curr += 1
 
-        w = 0
+        w = start_index
         for x in x_qregs_sorted:
             for type in x:
                 for qubit in type:
@@ -76,10 +83,19 @@ class basis_encoding_circuit:
         def diag_element(z):
             return exp(2 * pi * 1j * fxn(z) / 2 ** bit_accuracy)
 
+        ip_bit_accuracy = len(self.inner_prod_reg)
+        diag_array = []
+        test_array = []
+        for i in range(2 ** ip_bit_accuracy):
+            if i < 2 ** (ip_bit_accuracy - 1):
+                diag_array.append(diag_element(i))
+                test_array.append(i)
+            elif i >= 2 ** (ip_bit_accuracy - 1):
+                diag_array.append(diag_element(i - 2 ** ip_bit_accuracy))
+                test_array.append(i - 2 ** ip_bit_accuracy)
+
         D_gate = Diagonal(
-            array(
-                [diag_element(0), diag_element(1), diag_element(2), diag_element(3), diag_element(-4), diag_element(-3),
-                 diag_element(-2), diag_element(-1)])
+            array(diag_array)
         )
 
         for bit in range(bit_accuracy):
@@ -90,7 +106,7 @@ class basis_encoding_circuit:
 
     def draw_circuit(self):
         """"""
-        self.inference_circuit.decompose().decompose().draw(output='mpl')
+        self.inference_circuit.draw(output='mpl')
         plt.show()
 
     def measure_register(self, register):
@@ -121,6 +137,9 @@ class basis_encoding_circuit:
             )
             self.result = job.result()
 
+    def get_counts(self):
+        return self.result.get_counts()
+
     def display_results(self):
         """"""
         plot_histogram(self.result.get_counts(), title="QML Inference Circuit Results", color='black')
@@ -135,7 +154,6 @@ class basis_encoding_circuit:
 
     def get_number_of_qubits(self):
         self.num_of_qubits = self.inference_circuit.num_qubits
-        print("Number of Qubits Required: ", self.num_of_qubits)
 
     class basis_encoding:
         """"""
@@ -265,7 +283,7 @@ class amplitude_encoding_circuit:
         )
         U_phi_r__gate__circuit.h(anc_reg)
 
-        U_phi_r__gate__circuit.decompose().draw(output='mpl')
+        U_phi_r__gate__circuit.draw(output='mpl')
         plt.show()
         return U_phi_r__gate__circuit.to_gate(label=r'$U_{\phi_r}$')
 
@@ -290,7 +308,7 @@ class amplitude_encoding_circuit:
             U_phi_r,
             anc_reg[:] + data_reg[:]
         )
-        G_r__gate__circuit.decompose().draw(output='mpl')
+        G_r__gate__circuit.draw(output='mpl')
         plt.show()
 
         return G_r__gate__circuit.to_gate(label=r'$G_r$')
