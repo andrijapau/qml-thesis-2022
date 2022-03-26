@@ -1,18 +1,21 @@
 from model_testing import *
 
-inner_prod_bit_accuracy = 6
+inner_prod_bit_accuracy = 2
 activation_fxn_bit_accuracy = 1
 backend_name = "ibmq_qasm_simulator"
 
 # w1, w2, b
-beta = array([-8.803, -14.53, 12.57])
+beta = array([-8.803, -14.53, 12.57]) / 10
 
 # begin testing
 test = model_testing(trained_weights=beta, inner_product_bit_accuracy=inner_prod_bit_accuracy,
                      activation_fxn_bit_accuracy=activation_fxn_bit_accuracy, debug=False)
 test.load_csv("./datasets/qml_dataset.csv")
 test.run_model_on_backend(backend=backend_name)
+# test.run_circuit_from_qasm('qasm', backend=backend_name)
 test.print_metrics()
+
+# test.print_backend_info()
 
 # def sigmoid(z):
 #     return 1 / (1 + exp(-z))

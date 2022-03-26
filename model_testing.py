@@ -17,10 +17,11 @@ class model_testing:
         self.beta = trained_weights
         self.ip_bit_accuracy = inner_product_bit_accuracy
         self.fxn_bit_accuracy = activation_fxn_bit_accuracy
-        self.f = lambda z: 1 / (1 + exp(-z))
+        self.scaling_factor = 10
+        self.f = lambda z: 1 / (1 + exp(-1 * self.scaling_factor * z))
 
         IBMQ.load_account()
-        self.provider = IBMQ.get_provider(hub='ibm-q')
+        self.provider = IBMQ.get_provider(hub='strangeworks-hub', group="science-team", project="science-test")
 
     def load_csv(self, csv_name=None):
         with open(csv_name, "r") as csvfile:
@@ -45,31 +46,66 @@ class model_testing:
         self.y_true = self.dataset[:, -1]
         self.y_pred = []
 
-    def run_model_on_backend(self, backend, shots=20000):
+    def run_model_on_backend(self, backend, shots=32000):
+        self.backend = self.provider.get_backend(backend)
 
-        for i in tqdm(range(len(self.x_test)), desc="Processing X Test Vectors"):
+        circuit_batch_list = []
+        for i in tqdm(range(len(self.x_test)), desc="Building Circuit Batch"):
+
+            self.circuit = basis_encoding_circuit()
+
+            self.circuit.encode_data(self.x_test[i])
+            self.circuit.add_inner_product_module(self.beta, bit_accuracy=self.ip_bit_accuracy)
+            self.circuit.add_activation_fxn_module(self.f, bit_accuracy=self.fxn_bit_accuracy)
+
             if self.debug:
                 print("TRUE DOT: ", dot(self.x_test[i], self.beta))
                 print("TRUE SIGMOID: ", self.f(dot(self.x_test[i], self.beta)))
                 self.circuit.draw_circuit()
-                self.circuit.display_results()
+                # self.circuit.inference_circuit.qasm(filename='qasm')
 
-            self.circuit = basis_encoding_circuit()
-            self.circuit.encode_data(self.x_test[i])
-            self.circuit.add_inner_product_module(self.beta, bit_accuracy=self.ip_bit_accuracy)
-            self.circuit.add_activation_fxn_module(self.f, bit_accuracy=self.fxn_bit_accuracy)
-            self.backend = self.provider.get_backend(backend)
-            self.circuit.execute_circuit(shots=shots, backend=backend, optimization_level=None)
+            if self.circuit.inference_circuit.num_qubits <= 10:
+                circuit_batch_list.append(self.circuit.inference_circuit)
+            else:
+                print(self.x_test[i])
 
-            counts = self.circuit.get_counts()
+        print("Running Circuits ...")
+        self.backend = self.provider.get_backend(backend)
+        job = execute(
+            transpile(circuit_batch_list, self.backend),
+            backend=self.backend,
+            shots=shots
+        )
+        self.result = job.result()
+
+        for i in range(len(circuit_batch_list)):
+            counts = self.result.get_counts(i)
             y_pred_value = self.get_class(counts)
-
             self.y_pred.append([y_pred_value])
+
+    def run_circuit_from_qasm(self, qasm_file, backend, shots=32000):
+        backend = self.provider.get_backend(backend)
+        qasm_circuit = QuantumCircuit.from_qasm_file('./{}'.format(qasm_file))
+        qasm_circuit.draw(output='mpl')
+        plt.show()
+        job = execute(
+            transpile(qasm_circuit, backend),
+            backend=backend,
+            shots=shots
+        )
+        result = job.result()
+        print(result)
 
     def print_metrics(self):
         self.print_confusion_matrix_and_measures()
         self.print_auc_score()
         self.plot_roc_curve()
+
+    def print_backend_info(self):
+        plot_gate_map(self.backend)
+        plot_error_map(self.backend)
+        # plot_coupling_map(self.backend)
+        plt.show()
 
     def get_class(self, counts):
         total_shots = sum(list(counts.values()))
@@ -80,7 +116,7 @@ class model_testing:
 
     def print_confusion_matrix_and_measures(self):
         self.cfn_matrix = confusion_matrix(self.y_true, self.y_pred)
-
+        print(self.cfn_matrix)
         TP = self.cfn_matrix[0, 0]  # True Positive
         FP = self.cfn_matrix[0, 1]  # False Positive
         FN = self.cfn_matrix[1, 0]  # False Negative

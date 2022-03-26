@@ -1,11 +1,13 @@
+import qiskit.circuit
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, execute, transpile
 from qiskit.circuit.library import Diagonal, CPhaseGate, RZGate, RYGate
-from qiskit.visualization import plot_histogram
+from qiskit.circuit import Qubit
+from qiskit.visualization import plot_histogram, plot_gate_map, plot_error_map, plot_coupling_map
 
 from qiskit.providers.ibmq import least_busy
 from qiskit import IBMQ
 
-from numpy import array, exp, pi, dot, floor, log2
+from numpy import array, exp, pi, dot, floor, log2, copy
 import matplotlib.pyplot as plt
 
 from utilities import FloatingPointDecimal2Binary
@@ -17,11 +19,11 @@ class basis_encoding_circuit:
     def __init__(self):
         self.basis_encoding_hf = self.basis_encoding()
         self.algorithms_hf = self.algorithms()
-        self.inference_circuit = QuantumCircuit()
+        self.inference_circuit = QuantumCircuit(name='basis_encoding_circuit')
         self.num_of_qubits = 0
 
         IBMQ.load_account()
-        self.provider = IBMQ.get_provider(hub='ibm-q')
+        self.provider = IBMQ.get_provider(hub='strangeworks-hub', group="science-team", project="science-test")
 
     def encode_data(self, x_vector):
         """"""
@@ -58,18 +60,22 @@ class basis_encoding_circuit:
             curr += 1
 
         w = start_index
+        encode_data_circuit = copy(self.inference_circuit.data)
         for x in x_qregs_sorted:
             for type in x:
                 for qubit in type:
-                    for i in reversed(range(num_of_ip_anc)):
-                        if "int" in qubit.register.name:
-                            self.inference_circuit.append(
-                                CPhaseGate(w_vector[w] * (2 ** qubit.index) * pi / 2 ** i),
-                                [qubit.register[qubit.index], self.inner_prod_reg[i]])
-                        if "float" in qubit.register.name:
-                            self.inference_circuit.append(
-                                CPhaseGate(w_vector[w] * (2 ** -(qubit.index + 1)) * pi / 2 ** i),
-                                [qubit.register[qubit.index], self.inner_prod_reg[i]])
+                    for gate in encode_data_circuit:
+                        # gate[1] contains all qubits that have an x gate on them
+                        if qubit in gate[1]:
+                            for i in reversed(range(num_of_ip_anc)):
+                                if "int" in qubit.register.name:
+                                    self.inference_circuit.append(
+                                        CPhaseGate(w_vector[w] * (2 ** qubit.index) * pi / 2 ** i),
+                                        [qubit.register[qubit.index], self.inner_prod_reg[i]])
+                                if "float" in qubit.register.name:
+                                    self.inference_circuit.append(
+                                        CPhaseGate(w_vector[w] * (2 ** -(qubit.index + 1)) * pi / 2 ** i),
+                                        [qubit.register[qubit.index], self.inner_prod_reg[i]])
             w += 1
 
         self.algorithms_hf.inv_qft(self.inference_circuit, self.inner_prod_reg)
@@ -103,6 +109,7 @@ class basis_encoding_circuit:
                                           [self.activation_fxn_reg[bit]] + self.inner_prod_reg[:])
 
         self.algorithms_hf.inv_qft(self.inference_circuit, self.activation_fxn_reg)
+        self.measure_register(self.activation_fxn_reg)
 
     def draw_circuit(self):
         """"""
@@ -116,7 +123,6 @@ class basis_encoding_circuit:
 
     def execute_circuit(self, shots, backend=None, optimization_level=None):
         """"""
-        self.measure_register(self.activation_fxn_reg)
         self.get_number_of_qubits()
 
         if backend == None:
@@ -163,7 +169,7 @@ class basis_encoding_circuit:
 
         def convert_data_to_binary(self, decimal):
             ''''''
-            places = 2
+            places = 3
             if decimal < 0:
                 print("In progress")
             elif decimal > 0:
@@ -229,7 +235,8 @@ class amplitude_encoding_circuit:
         self.algorithms_hf = self.algorithms()
 
         IBMQ.load_account()
-        self.provider = IBMQ.get_provider(hub='ibm-q')
+        self.provider = IBMQ.get_provider(hub='strangeworks-hub', group="science-team", project="science-test")
+        # self.provider = IBMQ.get_provider(hub='ibm-q')
 
     def encode_data(self, x_vec, w_vec):
 
