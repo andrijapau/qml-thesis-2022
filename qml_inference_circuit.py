@@ -43,15 +43,21 @@ class basis_encoding_circuit:
         x_qregs = array([reg for reg in qregs if "x" in reg.name], dtype=object)
 
         if x_qregs.ndim == 2:
+            # when data is only bias
             first_element = x_qregs[0, 0]
+            last_element = x_qregs[-1, 0]
             start_index = int(first_element.register.name.lstrip('x').rstrip('_float').rstrip('_int'))
+            last_index = int(last_element.register.name.lstrip('x').rstrip('_float').rstrip('_int'))
+
         else:
             first_element = x_qregs[0]
+            last_element = x_qregs[-1]
             start_index = int(first_element.name.lstrip('x').rstrip('_float').rstrip('_int'))
+            last_index = int(last_element.name.lstrip('x').rstrip('_float').rstrip('_int'))
 
         x_qregs_sorted = []
         curr = start_index
-        for i in range(len(x_qregs)):
+        for i in range(last_index + 1):
             temp = []
             for x in x_qregs:
                 if "{}".format(curr) in x[0].register.name:
@@ -66,7 +72,7 @@ class basis_encoding_circuit:
                 for qubit in type:
                     for gate in encode_data_circuit:
                         # gate[1] contains all qubits that have an x gate on them
-                        if qubit in gate[1]:
+                        if qubit in gate[1] and gate[0].name == 'x':
                             for i in reversed(range(num_of_ip_anc)):
                                 if "int" in qubit.register.name:
                                     self.inference_circuit.append(

@@ -17,7 +17,7 @@ class model_testing:
         self.beta = trained_weights
         self.ip_bit_accuracy = inner_product_bit_accuracy
         self.fxn_bit_accuracy = activation_fxn_bit_accuracy
-        self.scaling_factor = 10
+        self.scaling_factor = 7
         self.f = lambda z: 1 / (1 + exp(-1 * self.scaling_factor * z))
 
         IBMQ.load_account()
@@ -45,13 +45,16 @@ class model_testing:
         self.x_test = self.dataset[:, :-1]
         self.y_true = self.dataset[:, -1]
         self.y_pred = []
+        self.y_simulator_pred = []
 
-    def run_model_on_backend(self, backend, shots=32000):
+    def run_model_on_backend(self, backend, shots=50000):
+        self.backend_name = backend
         self.backend = self.provider.get_backend(backend)
 
         circuit_batch_list = []
-        for i in tqdm(range(len(self.x_test)), desc="Building Circuit Batch"):
-
+        for i in range(len(self.x_test)):
+            if i % 2 == 0:
+                print("Building circuit(s) ... {} %".format(round(100 * i / len(self.x_test), 3)))
             self.circuit = basis_encoding_circuit()
 
             self.circuit.encode_data(self.x_test[i])
@@ -68,35 +71,41 @@ class model_testing:
                 circuit_batch_list.append(self.circuit.inference_circuit)
             else:
                 print(self.x_test[i])
+        print("Building circuit(s) ... Done \n")
 
-        print("Running Circuits ...")
-        self.backend = self.provider.get_backend(backend)
+        print("Running circuit(s) on {} ... ".format(self.backend_name))
         job = execute(
             transpile(circuit_batch_list, self.backend),
             backend=self.backend,
             shots=shots
         )
         self.result = job.result()
+        print("Done. \n")
+
+        if self.backend_name != "ibmq_qasm_simulator":
+            print("Running circuit(s) on ibmq_qasm_simulator ... ")
+            self.sim_backend = self.provider.get_backend("ibmq_qasm_simulator")
+            job = execute(
+                transpile(circuit_batch_list, self.sim_backend),
+                backend=self.sim_backend,
+                shots=shots
+            )
+            self.simulation_results = job.result()
+            print("Done. \n")
+
+            for i in range(len(circuit_batch_list)):
+                counts = self.simulation_results.get_counts(i)
+                y_simulation_pred_value = self.get_class(counts)
+                self.y_simulator_pred.append([y_simulation_pred_value])
 
         for i in range(len(circuit_batch_list)):
             counts = self.result.get_counts(i)
             y_pred_value = self.get_class(counts)
             self.y_pred.append([y_pred_value])
 
-    def run_circuit_from_qasm(self, qasm_file, backend, shots=32000):
-        backend = self.provider.get_backend(backend)
-        qasm_circuit = QuantumCircuit.from_qasm_file('./{}'.format(qasm_file))
-        qasm_circuit.draw(output='mpl')
-        plt.show()
-        job = execute(
-            transpile(qasm_circuit, backend),
-            backend=backend,
-            shots=shots
-        )
-        result = job.result()
-        print(result)
-
     def print_metrics(self):
+        print("Printing metrics for backend {} ... \n".format(self.backend_name))
+
         self.print_confusion_matrix_and_measures()
         self.print_auc_score()
         self.plot_roc_curve()
@@ -146,12 +155,14 @@ class model_testing:
 
     def plot_roc_curve(self):
         fpr, tpr, thres = roc_curve(self.y_true, self.y_pred, pos_label=1)
-        plt.plot(fpr, tpr, linestyle='--', color='orange', label='Logistic Regression (QML)')
-        # title
-        plt.title('ROC curve')
-        # x label
+        plt.plot(fpr, tpr, linestyle='-', color='blue', label='{}'.format(self.backend_name))
+
+        if self.backend_name != "ibmq_qasm_simulator":
+            fpr_sim, tpr_sim, thres_sim = roc_curve(self.y_true, self.y_simulator_pred, pos_label=1)
+            plt.plot(fpr_sim, tpr_sim, linestyle='--', color='black', label='{}'.format("ibmq_qasm_simulator"))
+
+        plt.title('ROC curve for Logistic Regression')
         plt.xlabel('False Positive Rate')
-        # y label
         plt.ylabel('True Positive rate')
         plt.legend(loc='best')
         plt.savefig('ROC', dpi=300)
@@ -172,3 +183,16 @@ class model_testing:
         pyplot.show()
 
         df.to_csv("make_blobs_dataset.csv")
+
+    def run_circuit_from_qasm(self, qasm_file, backend, shots=32000):
+        backend = self.provider.get_backend(backend)
+        qasm_circuit = QuantumCircuit.from_qasm_file('./{}'.format(qasm_file))
+        qasm_circuit.draw(output='mpl')
+        plt.show()
+        job = execute(
+            transpile(qasm_circuit, backend),
+            backend=backend,
+            shots=shots
+        )
+        result = job.result()
+        print(result)

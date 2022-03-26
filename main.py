@@ -2,7 +2,7 @@ from model_testing import *
 
 inner_prod_bit_accuracy = 2
 activation_fxn_bit_accuracy = 1
-backend_name = "ibmq_qasm_simulator"
+backend_name = "ibm_nairobi"
 
 # w1, w2, b
 beta = array([-8.803, -14.53, 12.57]) / 10
