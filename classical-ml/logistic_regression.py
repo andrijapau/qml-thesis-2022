@@ -1,3 +1,5 @@
+#
+
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
@@ -92,17 +94,32 @@ def plot_reg(X, y, beta):
     x_1 = X[np.where(y == 1.0)]
 
     # plotting points with diff color for diff label
-    plt.scatter([x_0[:, 1]], [x_0[:, 2]], c='b', label='y = 0')
-    plt.scatter([x_1[:, 1]], [x_1[:, 2]], c='r', label='y = 1')
+    blue = np.array([31, 76, 124])
+    orange = np.array([242, 177, 61])
+    green = np.array([48, 111, 29])
+    plt.scatter([x_0[:, 1]], [x_0[:, 2]], c=blue / 255., label='y=0')
+    plt.scatter([x_1[:, 1]], [x_1[:, 2]], c=orange / 255., label='y=1')
+
+    # Plot test vectors
+    x_test = [
+        [0, 0], [1, 1], [1, 0.75], [0.25, 0], [0.5, 1], [0.125, 0.125], [0, 0.125], [0, 0.375], [0.75, 1], [0.5, 0.125],
+        [0.25, 0.25], [0.25, 1]
+    ]
+    for i in range(len(x_test)):
+        if i == 0:
+            plt.scatter([x_test[i][0]], [x_test[i][1]], c=green / 255., marker="x", s=100, label=r'$y_{test}$')
+        else:
+            plt.scatter([x_test[i][0]], [x_test[i][1]], c=green / 255., marker="x", s=100)
 
     # plotting decision boundary
     x1 = np.arange(0, 1, 0.1)
     x2 = -(beta[0, 0] + beta[0, 1] * x1) / beta[0, 2]
-    plt.plot(x1, x2, c='k', label='reg line')
 
-    plt.xlabel('x1')
-    plt.ylabel('x2')
-    plt.legend()
+    plt.plot(x1, x2, 'k--', label='Regression Line')
+    plt.xlabel(r'$x_1$')
+    plt.ylabel(r'$x_2$')
+    plt.legend(loc='best')
+    plt.savefig('cml_dataset', dpi=300)
     plt.show()
 
 

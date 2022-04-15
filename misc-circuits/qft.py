@@ -1,3 +1,5 @@
+# This example is from Qiskit's QFT tutorial: https://qiskit.org/textbook/ch-algorithms/quantum-fourier-transform.html
+
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, execute
 from qiskit.visualization import plot_histogram
 from qiskit import IBMQ

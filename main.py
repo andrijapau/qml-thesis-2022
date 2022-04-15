@@ -1,22 +1,27 @@
+# Import model
 from model_testing import *
 
+# Define bit accuracy for various computations
 inner_prod_bit_accuracy = 2
 activation_fxn_bit_accuracy = 1
+
+# Define IBMQ Quantum backend to use
 backend_name = "ibm_nairobi"
 
-# w1, w2, b
-beta = array([-8.803, -14.53, 12.57]) / 10
+# Trained weight parameters: (w1, w2, b)
+scale = 1 / 10
+beta = array([-8.803, -14.53, 12.57]) * scale
 
-# begin testing
+# Create model and execute on backend to display results
 test = model_testing(trained_weights=beta, inner_product_bit_accuracy=inner_prod_bit_accuracy,
-                     activation_fxn_bit_accuracy=activation_fxn_bit_accuracy, debug=False)
+                     activation_fxn_bit_accuracy=activation_fxn_bit_accuracy, debug=True)
 test.load_csv("./datasets/qml_dataset.csv")
-test.run_model_on_backend(backend=backend_name)
-# test.run_circuit_from_qasm('qasm', backend=backend_name)
+test.run_model_on_backend(backend=backend_name, multipleShots=True, withMitigation=False, seed=1005)
 test.print_metrics()
 
-# test.print_backend_info()
+# AMPLITUDE ENCODING STUFF BELOW.
 
+# test.print_backend_info()
 # def sigmoid(z):
 #     return 1 / (1 + exp(-z))
 #

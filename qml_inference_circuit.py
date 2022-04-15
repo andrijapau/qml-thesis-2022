@@ -119,7 +119,7 @@ class basis_encoding_circuit:
 
     def draw_circuit(self):
         """"""
-        self.inference_circuit.draw(output='mpl')
+        self.inference_circuit.draw('mpl', filename='circuit_example.png', style={'name': 'bw', 'dpi': 350})
         plt.show()
 
     def measure_register(self, register):
