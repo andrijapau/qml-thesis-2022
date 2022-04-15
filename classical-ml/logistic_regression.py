@@ -1,4 +1,5 @@
-#
+# From: https://github.com/Ashwini22/Logistic-Regression/blob/master/BinomialLogisticRegression.py
+# Slight adjustments made for personal dataset.
 
 import csv
 import numpy as np
